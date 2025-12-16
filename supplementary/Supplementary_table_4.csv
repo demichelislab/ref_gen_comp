@@ -1,0 +1,82 @@
+Symbol;comparison;TOT;EVENT;prop_bases_event;perc_peaks_event;track
+Deletion;hg19vsT2T;361708;3036667;0.00068777077327588;3.47%;"TFBS
+(N peaks =
+10.43 M)"
+Deletion;hg38vsT2T;359303;1995996;0.000452070547207041;3.44%;"TFBS
+(N peaks =
+10.43 M)"
+Deletion;hg19vshg38;11027;323332;7.32310456381411e-05;0.11%;"TFBS
+(N peaks =
+10.43 M)"
+Insertion;hg19vsT2T;388712;8135222;0.00184253588744204;3.73%;"TFBS
+(N peaks =
+10.43 M)"
+Insertion;hg38vsT2T;384567;7940753;0.00179849085566602;3.69%;"TFBS
+(N peaks =
+10.43 M)"
+Insertion;hg19vshg38;8925;1169534;0.000264886239930962;0.09%;"TFBS
+(N peaks =
+10.43 M)"
+Mismatch;hg19vsT2T;2603787;23519776;0.00532696358434939;24.96%;"TFBS
+(N peaks =
+10.43 M)"
+Mismatch;hg38vsT2T;2582779;17528650;0.00397004122117514;24.76%;"TFBS
+(N peaks =
+10.43 M)"
+Mismatch;hg19vshg38;59043;6574104;0.00148896029484829;0.57%;"TFBS
+(N peaks =
+10.43 M)"
+Deletion;hg19vsT2T;847;3273;9.762866825366e-06;0.08%;"ClinVar
+(N entries =
+1.11 M)"
+Deletion;hg19vshg38;2;6;1.78970977550247e-08;0.00%;"ClinVar
+(N entries =
+1.11 M)"
+Deletion;hg38vsT2T;21039;166412;0.000496381971934863;1.89%;"ClinVar
+(N entries =
+1.11 M)"
+Insertion;hg19vsT2T;1108;4136;1.23370660524637e-05;0.10%;"ClinVar
+(N entries =
+1.11 M)"
+Insertion;hg19vshg38;2;6;1.78970977550247e-08;0.00%;"ClinVar
+(N entries =
+1.11 M)"
+Insertion;hg38vsT2T;30832;211360;0.000630455096917005;2.77%;"ClinVar
+(N entries =
+1.11 M)"
+Mismatch;hg19vsT2T;187344;634463;0.00189250772215771;16.82%;"ClinVar
+(N entries =
+1.11 M)"
+Mismatch;hg19vshg38;5748;131114;0.000391093345842052;0.52%;"ClinVar
+(N entries =
+1.11 M)"
+Mismatch;hg38vsT2T;184572;507212;0.00151293712442027;16.57%;"ClinVar
+(N entries =
+1.11 M)"
+Deletion;hg19vsT2T;2907;182735;0.00617200741404221;5.89%;"CpG islands
+(N islands =
+0.05 M)"
+Deletion;hg38vsT2T;2909;216221;0.00730302139749704;5.89%;"CpG islands
+(N islands =
+0.05 M)"
+Deletion;hg19vshg38;226;64942;0.00219346324175844;0.46%;"CpG islands
+(N islands =
+0.05 M)"
+Insertion;hg19vsT2T;2942;54640;0.00184550570554774;5.96%;"CpG islands
+(N islands =
+0.05 M)"
+Insertion;hg38vsT2T;2889;57551;0.00194382684590004;5.85%;"CpG islands
+(N islands =
+0.05 M)"
+Insertion;hg19vshg38;218;31772;0.00107312238793307;0.44%;"CpG islands
+(N islands =
+0.05 M)"
+Mismatch;hg19vsT2T;18600;130653;0.00441290001733033;37.66%;"CpG islands
+(N islands =
+0.05 M)"
+Mismatch;hg38vsT2T;18589;132533;0.00447639838348021;37.64%;"CpG islands
+(N islands =
+0.05 M)"
+Mismatch;hg19vshg38;512;44139;0.00149082679972862;1.04%;"CpG islands
+(N islands =
+0.05 M)"
