@@ -22,8 +22,8 @@ library(patchwork)
 library(ggrepel)
 library(ggridges)
 
-knitr::opts_chunk$set(dev = c("png", "pdf", "svglite"),
-                      fig.ext = c("png", "pdf", "svg"),
+knitr::opts_chunk$set(dev = c("png"),
+                      fig.ext = c("png"),
                       fig.path = c("Figure_1_S1_S2/"),
                       fig.process = function(filename) {new_filename <- stringr::str_remove(string = filename,
                                         pattern = "-1")

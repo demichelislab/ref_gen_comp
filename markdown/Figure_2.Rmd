@@ -29,8 +29,8 @@ library(BSgenome.Hsapiens.UCSC.hg38)
 library(BSgenome.Hsapiens.NCBI.T2T.CHM13v2.0)
 
 
-knitr::opts_chunk$set(dev = c("png", "pdf", "svglite"),
-                      fig.ext = c("png", "pdf", "svg"),
+knitr::opts_chunk$set(dev = c("png"),
+                      fig.ext = c("png"),
                       fig.path = c("Figure_2_S5/"),
                       fig.process = function(filename) {new_filename <- stringr::str_remove(string = filename,
                                         pattern = "-1")
@@ -41,7 +41,7 @@ knitr::opts_chunk$set(dev = c("png", "pdf", "svglite"),
                       unit = "cm",
                       message = FALSE, warning = FALSE)
 
-supp_table_path <- "../Supplementary/"
+supp_table_path <- "../supplementary/"
 tables_path <- "../tables/"
 rdata_path <- "../rdata/"
 utilities_path <- "../utilities/"
@@ -211,7 +211,7 @@ Left side: sketch
 For right side load data:
 
 ```{r}
-all_tracks <- fread(paste0(tables_path, "summary_tracks.tsv"))
+all_tracks <- fread(paste0(supp_table_path, "Supplementary_table_4.csv"))
 all_tracks <- all_tracks %>% 
   mutate(Symbol = factor(Symbol, levels = rev(c("Match", "Mismatch", "Deletion", "Insertion")))) %>% 
   filter(Symbol != "Match") 

@@ -578,7 +578,7 @@ plot_tb <- plot_tb %>%
 Load data:
 
 ``` r
-all_tracks <- fread(paste0(tables_path, "summary_tracks.tsv"))
+all_tracks <- fread(paste0(supp_table_path, "Supplementary_table_4.csv"))
 all_tracks <- all_tracks %>% 
   mutate(Symbol = factor(Symbol, levels = rev(c("Match", "Mismatch", "Deletion", "Insertion")))) %>% 
   filter(Symbol != "Match") 

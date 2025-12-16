@@ -29,7 +29,7 @@ def$cv <- ifelse(def$cv == "Other" & def$class == "Likely_benign", "Likely benig
 def$cv <- ifelse(is.na(def$cv), "Other", as.character(def$cv))
 levels(def$cv) <- c("Benign", "Likely benign", "Other", "Conflicting interpretations", "Uncertain significance", "Likely pathogenic", "Pathogenic")
 
-load(paste0(rdata_path, "SNV_ClinVar.RData"))
+load(paste0(rdata_path, "variant_calls_ClinVar.RData"))
 calls <- left_join(calls %>% dplyr::select(-c(nc)) %>% mutate(ID = as.character(ID.y)), def, by = "ID")
 calls <- calls %>% mutate(identifier = paste0(sample, ID))
 calls <- calls %>% group_by(sample, ID) %>% dplyr::filter(n()==2) %>% ungroup() %>% 
@@ -43,11 +43,13 @@ Compare calls from different callers:
 vaf_thr <- 0.05
 cov_thr <- 50
 call_strelka <- calls %>% filter(AF.indel >= vaf_thr & cov.indel > cov_thr &
+                                   nchar(REF.indel) == 1 & nchar(ALT.indel) == 1 &
                                    !is.na(AF.indel), nc != "Equal") %>% 
   distinct(identifier, assembly, AF.indel, cv, QUAL.indel, cov.indel, nc)
 
 call_strelka$method <- "Strelka2"
 call_bcf <- calls %>% filter(AF.bcf >= vaf_thr & cov.bcf > cov_thr &
+                               nchar(REF.bcf) == 1 & nchar(ALT.bcf) == 1 &
                                    !is.na(AF.bcf), nc != "Equal") %>% 
   distinct(identifier, assembly, AF.bcf, cv, QUAL.bcf, cov.bcf, nc)
 call_bcf$method <- "BCFtools"
@@ -61,24 +63,24 @@ call_comparison %>% group_by(method, cv) %>% summarize(increment =
 ```
 
 ```
-## # A tibble: 14 x 3
+## # A tibble: 14 × 3
 ## # Groups:   method [2]
 ##    method   cv                          increment
 ##    <chr>    <fct>                           <dbl>
-##  1 BCFtools Benign                        -0.0714
-##  2 BCFtools Likely benign                 -1.87  
-##  3 BCFtools Other                         -0.392 
-##  4 BCFtools Conflicting interpretations   -0.571 
-##  5 BCFtools Uncertain significance        -0.829 
-##  6 BCFtools Likely pathogenic              0     
-##  7 BCFtools Pathogenic                     3.70  
-##  8 Strelka2 Benign                         0.0539
-##  9 Strelka2 Likely benign                 -0.477 
-## 10 Strelka2 Other                         -0.2   
-## 11 Strelka2 Conflicting interpretations   -0.578 
-## 12 Strelka2 Uncertain significance         1.10  
-## 13 Strelka2 Likely pathogenic              0     
-## 14 Strelka2 Pathogenic                     1.82
+##  1 BCFtools Benign                         -2.70 
+##  2 BCFtools Likely benign                  -0.257
+##  3 BCFtools Other                           2.95 
+##  4 BCFtools Conflicting interpretations    15.3  
+##  5 BCFtools Uncertain significance          1.73 
+##  6 BCFtools Likely pathogenic              13.0  
+##  7 BCFtools Pathogenic                     24.7  
+##  8 Strelka2 Benign                        -14.7  
+##  9 Strelka2 Likely benign                  -5.69 
+## 10 Strelka2 Other                         -20.4  
+## 11 Strelka2 Conflicting interpretations    13.7  
+## 12 Strelka2 Uncertain significance         -0.440
+## 13 Strelka2 Likely pathogenic               8.33 
+## 14 Strelka2 Pathogenic                     22.6
 ```
 
 
@@ -362,18 +364,21 @@ calls_venn <- calls %>% filter(grepl("athogenic", cv))
 hg38 <- list("Strelka2\n" = unique(calls_venn %>% filter(AF.indel >= vaf_thr & 
                                                                 !is.na(AF.indel) &
                                                                cov.indel >= cov_thr & 
+                                                           nchar(REF.indel) == 1 & nchar(ALT.indel) == 1 &
                                                                 nchar(REF.indel) == 1 &   nchar(ALT.indel) == 1 &
                                                            QUAL.indel > qual_thr,
                                                                 assembly == "hg38") %>% pull(identifier)),
           " Strelka2 noindel\n" = unique(calls_venn %>% filter(AF.noindel >=vaf_thr & 
                                                                      !is.na(AF.noindel) &
                                                                      cov.noindel >= cov_thr & 
+                                                                 nchar(REF.noindel) == 1 & nchar(ALT.noindel) == 1 &
                                                                  QUAL.noindel > qual_thr,
                                                                       nchar(REF.noindel) == 1 &   nchar(ALT.noindel) == 1 &
                                                                      assembly == "hg38") %>% pull(identifier)), 
           "BCFtools\n" = unique(calls_venn %>% filter(AF.bcf >= vaf_thr & 
                                                              !is.na(AF.bcf) &
                                                              cov.bcf >= cov_thr & 
+                                                        nchar(REF.bcf) == 1 & nchar(ALT.bcf) == 1 &
                                                         QUAL.bcf > qual_thr,
                                                               nchar(REF.bcf) == 1 &   nchar(ALT.bcf) == 1 &
                                                            assembly == "hg38") %>% pull(identifier))
@@ -581,7 +586,7 @@ median(inpt %>% dplyr::filter(id == 17) %>% pull(cov_perc))
 ```
 
 ```
-## [1] NA
+## [1] 0.422833
 ```
 
 ``` r
@@ -650,7 +655,7 @@ sc <- left_join(sum_calls, def %>% distinct(cv, ID)) %>% filter(cv %in% c("Patho
 
 
 ``` r
-load("/shares/CIBIO-Storage/CO/SPICE/personal/ilaria/long_1kgp/dfplot_cons_1kgp_hg38_t2t_patho.RData")
+load(paste0(rdata_path,"dfplot_cons_1kgp_hg38_t2t_patho.RData"))
 
 count_df <- df_plot %>% filter(ID == 100326, assembly == "hg38") %>% 
   group_by(`Superpopulation code`, ID, AS, assembly) %>%

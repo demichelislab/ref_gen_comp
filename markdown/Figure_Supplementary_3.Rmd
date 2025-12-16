@@ -24,8 +24,8 @@ library(rstatix)
 library(ggpp)
 library(ggside)
 
-knitr::opts_chunk$set(dev = c("png", "pdf", "svglite"),
-                      fig.ext = c("png", "pdf", "svg"),
+knitr::opts_chunk$set(dev = c("png"),
+                      fig.ext = c("png"),
                       fig.path = c("Figure_S3_S4/"),
                       fig.process = function(filename) {new_filename <- stringr::str_remove(string = filename,
                                         pattern = "-1")
@@ -36,7 +36,7 @@ knitr::opts_chunk$set(dev = c("png", "pdf", "svglite"),
                       unit = "cm",
                       message = FALSE, warning = FALSE)
 
-supp_table_path <- "../Supplementary/"
+supp_table_path <- "../supplementary/"
 rdata_path <- "../rdata/"
 utilities_path <- "../utilities/"
 tables_path <- "../tables/"
@@ -51,8 +51,8 @@ cbPalette <- c("#D55E00", "#E69F00", "#009E73", "#56B4E9", "#CC79A7")
 
 source("../utilities/theme_ggplot.R")
 
-chr_hg38 <- fread("http://hgdownload.cse.ucsc.edu/goldenpath/hg38/database/cytoBand.txt.gz",                   
-                  col.names = c("chrom","chromStart","chromEnd","name","gieStain"))
+chr_hg38 <- fread(paste0(utilities_path, "chr_band_hg38.txt"), col.names = c("chrom","chromStart","chromEnd","name","gieStain"))
+
 chr_hg38 <- chr_hg38 %>% mutate(arm=substr(name,1,1)) %>% 
   group_by(chrom,arm) %>% summarize(start=min(chromStart),end=max(chromEnd)) %>%  
   dplyr::rename(chr=chrom) %>% mutate(version=rep("hg38",n())) %>% 
@@ -624,7 +624,7 @@ plot_tb <- plot_tb %>%
 
 Load data:
 ```{r}
-all_tracks <- fread(paste0(tables_path, "summary_tracks.tsv"))
+all_tracks <- fread(paste0(supp_table_path, "Supplementary_table_4.csv"))
 all_tracks <- all_tracks %>% 
   mutate(Symbol = factor(Symbol, levels = rev(c("Match", "Mismatch", "Deletion", "Insertion")))) %>% 
   filter(Symbol != "Match") 
