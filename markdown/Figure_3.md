@@ -85,8 +85,10 @@ call_comparison %>% group_by(method, cv) %>% summarize(increment =
 
 
 ``` r
-df <- call_comparison %>% group_by(cv, method) %>% summarise(label = scales::percent(
-  -((length(identifier[assembly == "hg38"]) - length(identifier[assembly == "T2T"])) / length(identifier[assembly == "hg38"])), 2),
+df <- call_comparison %>% group_by(cv, method) %>% 
+  summarise(label = scales::percent(
+  -((length(identifier[assembly == "hg38"]) - length(identifier[assembly == "T2T"])) / 
+      length(identifier[assembly == "hg38"])), 2),
   y = max(length(identifier[assembly == "T2T"]), length(identifier[assembly == "hg38"])),
    x = unique(method))
 df$x <- rep(c(1:length(unique(df$cv))), 2)
@@ -112,12 +114,12 @@ a <- (ggplot(call_comparison,
 + geom_segment(data = df, aes(y = x-0.45, yend = x+0.45, x = y+ y*0.005, xend =  y+ y*0.005), lwd = 0.5) 
 )
 
-b <- (ggplot(call_comparison %>% group_by(identifier, method) %>% filter(n() == 2), 
+b <- (ggplot(call_comparison, 
        aes(x = assembly, y = as.numeric(QUAL), color = assembly))
  + theme_publication()
  + geom_boxplot(show.legend = F, outlier.shape = NA)
  + facet_wrap(method ~ ., scales = "free", ncol = 2)
- + stat_compare_means( paired = T, comparison = list(c("hg38", "T2T")), alternative = "less",
+ + stat_compare_means( comparison = list(c("hg38", "T2T")), alternative = "less",
                         tip.length = 0, angle = 0, show.legend =  F)
  + theme(legend.position = "bottom", 
           panel.grid = element_blank(),
@@ -131,6 +133,9 @@ b <- (ggplot(call_comparison %>% group_by(identifier, method) %>% filter(n() == 
          #legend.margin = margin(l = -.25, unit = "npc")
          # legend.margin = margin(-5,0,-5,0)
          ) 
+ + geom_text( data = . %>% ungroup() %>% filter(!is.na(QUAL)) %>% 
+                distinct(identifier, method, assembly) %>% dplyr::summarize(n = n(), .by = c("method", "assembly")),
+                aes (y = 0, label = paste0 ("N = ", n)), angle = 0, size = 4, vjust = 1.25, show.legend = F) 
  + labs( y = "SNV Phred-scaled quality score \n(QUAL)", color = "Assembly")
  + scale_color_manual(values = c("T2T" = "#ED7D31",  "hg38" = "#7f061b"),
                        labels = c("hg38", "T2T-CHM13"))
@@ -294,7 +299,7 @@ plot_pp <- (pp
 plot_pp
 ```
 
-![](Figure_3_S6/figure1G_msabrca1.png)<!-- -->
+![](Figure_3_S6/figure3D_msabrca1.png)<!-- -->
 
 ### TP53
 
@@ -346,7 +351,7 @@ plot_pp <- (pp
 plot_pp
 ```
 
-![](Figure_3_S6/figure1G_msatp53.png)<!-- -->
+![](Figure_3_S6/figure3D_msatp53.png)<!-- -->
 
 
 # Supplementary 6
@@ -364,21 +369,18 @@ calls_venn <- calls %>% filter(grepl("athogenic", cv))
 hg38 <- list("Strelka2\n" = unique(calls_venn %>% filter(AF.indel >= vaf_thr & 
                                                                 !is.na(AF.indel) &
                                                                cov.indel >= cov_thr & 
-                                                           nchar(REF.indel) == 1 & nchar(ALT.indel) == 1 &
                                                                 nchar(REF.indel) == 1 &   nchar(ALT.indel) == 1 &
                                                            QUAL.indel > qual_thr,
                                                                 assembly == "hg38") %>% pull(identifier)),
           " Strelka2 noindel\n" = unique(calls_venn %>% filter(AF.noindel >=vaf_thr & 
                                                                      !is.na(AF.noindel) &
                                                                      cov.noindel >= cov_thr & 
-                                                                 nchar(REF.noindel) == 1 & nchar(ALT.noindel) == 1 &
                                                                  QUAL.noindel > qual_thr,
                                                                       nchar(REF.noindel) == 1 &   nchar(ALT.noindel) == 1 &
                                                                      assembly == "hg38") %>% pull(identifier)), 
           "BCFtools\n" = unique(calls_venn %>% filter(AF.bcf >= vaf_thr & 
                                                              !is.na(AF.bcf) &
                                                              cov.bcf >= cov_thr & 
-                                                        nchar(REF.bcf) == 1 & nchar(ALT.bcf) == 1 &
                                                         QUAL.bcf > qual_thr,
                                                               nchar(REF.bcf) == 1 &   nchar(ALT.bcf) == 1 &
                                                            assembly == "hg38") %>% pull(identifier))
@@ -655,7 +657,7 @@ sc <- left_join(sum_calls, def %>% distinct(cv, ID)) %>% filter(cv %in% c("Patho
 
 
 ``` r
-load(paste0(rdata_path,"dfplot_cons_1kgp_hg38_t2t_patho.RData"))
+load("/shares/CIBIO-Storage/CO/SPICE/personal/ilaria/long_1kgp/dfplot_cons_1kgp_hg38_t2t_patho.RData")
 
 count_df <- df_plot %>% filter(ID == 100326, assembly == "hg38") %>% 
   group_by(`Superpopulation code`, ID, AS, assembly) %>%
