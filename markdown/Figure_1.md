@@ -11,12 +11,12 @@ output:
 
 
 
-Code to reproduce Figure 1, Supplementary Figure 1 and Supplementary Figure 2 from (add doi..).
+Code to reproduce Figure 1, Supplementary Figure 1 and Supplementary Figure 2.
 
 # Figure 1
 
 ## Figure 1A
-Sketch produced with Inkscape saved in Sketches/...
+Sketch produced with Inkscape.
 
 ## Figure 1B
 
@@ -98,8 +98,10 @@ Plot pairwise comparison and wilcoxon paired test of selected statistics values 
 
 ![](Figure_1_S1_S2/figure1B.png)<!-- -->
 
+![](Figure_1_S1_S2/figure1B_rasterized.png)<!-- -->
+
 ## Figure 1C
-Sketch ...
+Sketch produced with Inkscape.
 
 ## Figure 1D
 
@@ -132,6 +134,8 @@ Transform to long format and compute peaks:
 targeted_af_long <- compute_af_long(targeted_comp)
 wes_af_long <- compute_af_long(wes_comp)
 vcf_af_long <- compute_af_long(vcf_comp)
+vcf_cov_long <- compute_cov_long(vcf_comp)
+vcf_af_long <- merge(vcf_af_long, vcf_cov_long %>% filter(cov > 60))
 
 targeted_peaks <- peaks_af(targeted_af_long)
 wes_peaks <- peaks_af(wes_af_long)
@@ -287,6 +291,18 @@ pval_df <- left_join(pval_df, status)
 pval_df <- pval_df %>% group_by(design, p) %>% summarize(y.position = max(n))
 pval_df$group1 <- "> hg38"
 pval_df$group2 <- "> T2T-CHM13"
+
+pval_df
+```
+
+```
+## # A tibble: 3 × 5
+## # Groups:   design [3]
+##   design                                   p            y.position group1 group2
+##   <chr>                                    <chr>             <int> <chr>  <chr> 
+## 1 "1kGP VCF (cov > 60)"                    1.086814e-05      29453 > hg38 > T2T…
+## 2 "Breast cancer WES\n33Mb (96-500x)"      p<2.22e-16        54902 > hg38 > T2T…
+## 3 "Prostate cancer\n3Mb panel (200-1000x)" p<2.22e-16        57617 > hg38 > T2T…
 ```
 
 Produce figure:
@@ -563,7 +579,204 @@ patchwork::wrap_plots(a,  b, nrow = 1, axis_titles = "collect")
 
 ![](Figure_1_S1_S2/figureS2B.png)<!-- -->
 
+
+
 ## Figure S2C
+
+
+``` r
+# # Obtained from running Rscript plot_supp_2.R
+# load(paste0(rdata_path, "panels_kgp_ccle.RData"))
+```
+# 
+# ```{r figureS2C, fig.width = 17, fig.height = 5}
+# ggpubr::as_ggplot(panel)
+# ```
+
+## Review figures
+
+``` r
+bed_sd <- fread("/shares/CIBIO-Storage/CO/SPICE/personal/ilaria/resources/genome_annotations/chm13v2.0_SD.bed",
+             col.names = c("chr", "start", "end", "match", "score", "strand","s", "e", "l"))
+
+bed_sd$name <- paste0("ID", 1:nrow(bed_sd))
+
+bed_nonsyn <- fread("/shares/CIBIO-Storage/CO/SPICE/personal/ilaria/resources/genome_annotations/chm13v2-unique_to_hg38.bed",
+                    col.names = c("chr", "start", "end"))
+bed_nonsyn$name <- paste0("ID", 1:nrow(bed_nonsyn))
+```
+
+
+``` r
+snps <- bind_rows(list("Prostate cancer\n3Mb panel\n(200-1000x)" = 
+                         targeted_comp %>% 
+                         distinct(chr.T2T, pos.T2T) %>% 
+                         dplyr::rename(chr = chr.T2T, pos = pos.T2T),
+                       "Breast cancer\nWES 33Mb\n(96-500x)" = 
+                         wes_comp %>% distinct(chr.T2T, pos.T2T) %>% 
+                    dplyr::rename(chr = chr.T2T, pos = pos.T2T),
+                       "1kGP VCF\n(cov > 60)" = 
+                      vcf_comp %>% distinct(chr, pos.T2T.x) %>% 
+                    dplyr::rename(pos = pos.T2T.x)), .id = "design")
+
+snps <- assign_annotation(snps %>% 
+            mutate(start = pos, end = pos) %>% filter(!is.na(pos)),
+                              "SD", bed_sd)
+snps <- assign_annotation(snps,
+                              "Nonsyn", bed_nonsyn)
+
+snps <- snps %>% mutate(ot = case_when(
+  grepl("ID", SD) & grepl("ID", Nonsyn) ~ "SD & non-synthenic", 
+  !grepl("ID", SD) & grepl("ID", Nonsyn) ~ "Non-synthenic",
+  grepl("ID", SD) & !grepl("ID", Nonsyn) ~ "SD", .default = "None"))
+snps$ot <- factor(snps$ot, levels = 
+                    c("None", "Non-synthenic", "SD", "SD & non-synthenic"))
+```
+
+Overlap SD and non-synthenic regions:
+
+``` r
+(ggplot(snps, 
+        aes(x = design,  fill = ot))
+  + geom_bar(position = "fill")
+  + theme_publication()
+  + theme(legend.position = "bottom",
+          legend.title.position = "top")
+  + geom_label_repel(data = . %>% 
+              group_by(design, ot) %>%
+              tally() %>%
+              mutate(p = n / sum(n)) %>%
+              ungroup(),
+            aes(y = p, label = scales::percent(p, 0.01)),
+            position = position_stack(vjust = 0.5),
+            direction = "y",
+            show.legend = FALSE) 
+  + scale_fill_manual(values = c("None" = "gray80", 
+                                 "Non-synthenic" = "#3e9cbf", 
+                                 "SD" = "#f2c43d", 
+                                 "SD & non-synthenic" = "#79aab0"))
+  + labs(
+    y = "Proportion heterozygous SNPs",
+    x = "Cohort",
+    fill = "Overlap with complex regions",
+    subtitle = ""
+  )
+)
+```
+
+![](Figure_1_S1_S2/sd_overlap.png)<!-- -->
+
+Focus on 1kgp SNPs:
+
+``` r
+snps_vcf <- assign_annotation(vcf_comp %>% mutate(pos = pos.T2T.y),
+                              "SD", bed_sd)
+snps_vcf<- assign_annotation(snps_vcf %>% mutate(pos = pos.T2T.y),
+                              "Nonsyn", bed_nonsyn)
+
+snps_vcf <- snps_vcf %>% mutate(ot = case_when(
+  grepl("ID", SD) & grepl("ID", Nonsyn) ~ "SD & non-synthenic", 
+  grepl("ID", SD) & grepl("ID", Nonsyn) ~ "Non-synthenic",
+  grepl("ID", SD) & !grepl("ID", Nonsyn) ~ "SD", .default = "None"))
+snps_vcf$ot <- factor(snps_vcf$ot, levels = 
+                    c("None", "Non-synthenic", "SD", "SD & non-synthenic"))
+
+snps_vcf$cl <- ifelse(snps_vcf$cl %in% 
+                       c("VAF het for hg38 only", 
+                         "VAF het for T2T-CHM13 only", 
+                         "VAF inconsistent"),
+                     "VAF incoherent\n(VAF delta > 0.005)",
+                     ifelse(snps_vcf$cl == "Allele swapping", 
+                            "Allele swapping", "VAF coherent")
+)
+```
+
+
+``` r
+a <- (ggplot(snps_vcf %>% ungroup() %>% group_by(cl) %>% 
+          mutate(tot = n()) %>% ungroup() %>%
+          group_by(cl, ot) %>% 
+          summarize(perc = scales::percent(n() / unique(tot), 0.01),
+                    n = n()), 
+                            aes(x = cl, y = n, fill = ot))
+  + geom_col()
+  + theme_bw()
+  + theme_publication()
+  + theme(legend.position = "bottom")
+  + geom_label(aes(label = perc), position = position_stack(0.5),
+               show.legend = F)
+  + labs(
+    y = "N heterozygous SNPs",
+    x = "VAF status",
+    fill = "Overlap with complex regions",
+    subtitle = "1kGP hetSNPs with cov > 60"
+    )
+  + scale_fill_manual(values = c("None" = "gray80", 
+                                 "Non-synthenic" = "#3e9cbf", 
+                                 "SD" = "#f2c43d", 
+                                 "SD & non-synthenic" = "#79aab0"))
+  + theme(plot.subtitle = element_text(size = 15))
+)
+a
+```
+
+![](Figure_1_S1_S2/Review_2A.png)<!-- -->
+
+``` r
+b <- (ggplot(snps_vcf %>% filter(cov.T2T > 60), 
+        aes(x = ot, y = cov.T2T))
+  + geom_boxplot()
+  + theme_publication()
+  + labs(
+    y = "Coverage T2T-CHM13",
+    x = "Overlap with complex regions",
+    subtitle = "1kGP hetSNPs with cov > 60")
+ + theme(plot.subtitle = element_text(size = 15))
+)
+```
+
+
+``` r
+snps_vcf <- snps_vcf %>% filter(ot == "None")
+snps_vcf_af_long <- compute_af_long(snps_vcf)
+snps_vcf_cov_long <- compute_cov_long(snps_vcf)
+snps_vcf_af_long <- merge(snps_vcf_af_long, 
+    snps_vcf_cov_long %>% filter(cov > 60) %>% distinct(chr, pos, sample, assembly))
+snps_vcf_peaks <- peaks_af(vcf_af_long)
+
+snps_vcf_density <- create_density(snps_vcf_af_long, snps_vcf_peaks)
+
+c <- (vcf_density + labs(subtitle = "All hetSNPs")+ theme(plot.subtitle = element_text(size = 15)) ) /
+ (snps_vcf_density + labs(subtitle = "hetSNPs not overlapping SD\nor non-synthenic regions",
+                          color = "Assembly version") + 
+    theme(plot.subtitle = element_text(size = 15))) + 
+  plot_layout(guides = "collect", axis = "collect" ) & theme(legend.position = "bottom",
+                                                             legend.text = element_text(size = 9))
+```
+
+
+``` r
+a + b + wrap_elements(c) + plot_layout(widths = c(5,5, 6)) + plot_annotation(tag_levels = "A") &  
+  theme(plot.tag = element_text(size = 22, face = "bold"))
+```
+
+![](Figure_1_S1_S2/Review_Fig2.png)<!-- -->
+
+
+## Figure S2D
+
+``` r
+(vcf_density + labs(subtitle = "All hetSNPs")+ theme(plot.subtitle = element_text(size = 15)) ) +
+ (snps_vcf_density + labs(subtitle = "hetSNPs not overlapping SD\nor non-syntenic regions",
+                          color = "Assembly version") + 
+    theme(plot.subtitle = element_text(size = 15))) + 
+  plot_layout(guides = "collect", axis = "collect" ) & theme(legend.position = "bottom",
+                                                             legend.text = element_text(size = 9))
+```
+
+![](Figure_1_S1_S2/figureS2D.png)<!-- -->
+
+## Figure S2E
 
 Plot SNP direct comparison and coverage for data presented in Figure 1D and 1E:
 
@@ -649,24 +862,9 @@ coverage_row <- wrap_elements(patchwork::wrap_plots(vcf_coverage,
 histogram_row + plot_spacer() + coverage_row + plot_layout(ncol = 1, heights = c(3,-0.38,2))
 ```
 
-![](Figure_1_S1_S2/figureS2C.png)<!-- -->
+![](Figure_1_S1_S2/figureS2E.png)<!-- -->
 
-## Figure S2D
-
-
-``` r
-# Obtained from running Rscript plot_supp_2.R
-load(paste0(rdata_path, "panels_kgp_ccle.RData"))
-```
-
-
-``` r
-ggpubr::as_ggplot(panel)
-```
-
-![](Figure_1_S1_S2/figureS2D.png)<!-- -->
-
-## Figure S2E
+## Figure S2F
 
 Compute peaks by population:
 
@@ -741,5 +939,40 @@ b <- (ggplot(vcf_comp %>% filter(population != "EUR,AFR"),
 a + b + plot_layout(nrow = 2, guides = "collect", axis = "collect", heights = c(6,2)) + plot_annotation(theme = theme(legend.position = "top", legend.title.position = "left"))
 ```
 
-![](Figure_1_S1_S2/figureS2E.png)<!-- -->
+![](Figure_1_S1_S2/figureS2F.png)<!-- -->
+
+Compute pvalue for difference in VAF:
+
+
+``` r
+vcfd_df_comp_diff <- extract_snp_diff(vcf_comp)
+vcf_af_status <- assign_af_status(vcfd_df_comp_diff)
+options(scipen=999)
+pval_df <- vcfd_df_comp_diff |>
+  group_by(population) |>
+  group_map(~ tibble(
+    population   = unique(.y$population),
+    p_value = wilcox.test(
+      .x$af.T2T,
+      .x$af.hg38,
+      alternative = "greater",
+      paired      = TRUE
+    )$p.value
+  )) |>
+  bind_rows()
+
+pval_df
+```
+
+```
+## # A tibble: 5 × 2
+##   population     p_value
+##   <chr>            <dbl>
+## 1 AFR        0.648      
+## 2 AMR        0.657      
+## 3 EAS        0.0259     
+## 4 EUR        0.000000132
+## 5 SAS        0.000362
+```
+
 

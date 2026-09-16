@@ -27,12 +27,13 @@ library(clusterProfiler)
 library(Gviz)
 library(BSgenome.Hsapiens.UCSC.hg38)
 library(BSgenome.Hsapiens.NCBI.T2T.CHM13v2.0)
+library(ggbeeswarm)
 
-
-knitr::opts_chunk$set(dev = c("png"),
-                      fig.ext = c("png"),
+knitr::opts_chunk$set(dev = c("png", "pdf"),
+                      fig.ext = c("png", "pdf"),
                       fig.path = c("Figure_2_S5/"),
-                      fig.process = function(filename) {new_filename <- stringr::str_remove(string = filename,
+                      fig.process = function(filename) 
+                        {new_filename <- stringr::str_remove(string = filename,
                                         pattern = "-1")
                       fs::file_move(path = filename, new_path = new_filename)
                       ifelse(fs::file_exists(new_filename), new_filename, filename)},
@@ -72,7 +73,6 @@ seqlevelsStyle(BSgenome.Hsapiens.NCBI.T2T.CHM13v2.0) = "UCSC" # Convert chromoso
 
 ```{r utils, include = F}
 compact_string_to_df <- function(compact_str) {
-  # Split by "|" and separate symbols and ranges
   elements <- unlist(strsplit(compact_str, "\\|"))
   
   # Extract symbols and ranges into a dataframe
@@ -249,23 +249,19 @@ Load data:
 
 ```{r, warning = F}
 load(paste0(rdata_path, "clinvar.RData"))
-def <- de
-def$CLNREVSTAT <- sub(".*CLNREVSTAT=([^;]+).*", "\\1", def$INFO)
-
-def$cv <- ifelse(def$cv == "Other" & def$class == "Likely_benign", "Likely benign", as.character(def$cv))
-def$cv <- ifelse(is.na(def$cv), "Other", as.character(def$cv))
-
-levels(def$cv) <- c("Benign", "Likely benign", "Other", "Conflicting interpretations", "Uncertain significance", "Likely pathogenic", "Pathogenic")
-
-def <- def %>% mutate(hp_status = case_when((hm_match == "F" | is.na(hm_match)) & aln_hg38vsT2T != "." & !is.na(stretch) ~ "Difference outside homopolymer", 
-                                              hm_match == "T"  & !is.na(stretch) ~ "Difference in homopolymer",
-                                              is.na(stretch) & aln_hg38vsT2T != "." ~ "Difference outside homopolymer",
-                                              is.na(stretch)  & aln_hg38vsT2T == "." ~ "Identical proximity",
-                                              !is.na(stretch) & aln_hg38vsT2T == "." ~ "Identical proximity", 
-                                              .default = NA)) %>%
+def <- def %>% mutate(hp_status = case_when(
+  (hm_match == "F" | is.na(hm_match)) & aln_hg38vsT2T != "." & !is.na(stretch) ~ 
+    "Difference outside homopolymer", 
+  hm_match == "T"  & !is.na(stretch) ~ "Difference in homopolymer",
+  is.na(stretch) & aln_hg38vsT2T != "." ~ "Difference outside homopolymer", 
+  is.na(stretch)  & aln_hg38vsT2T == "." ~ "Identical proximity",
+  !is.na(stretch) & aln_hg38vsT2T == "." ~ "Identical proximity", 
+  .default = NA)) %>%
   mutate(stretch = ifelse(is.na(stretch), "No homopolymer stretch", stretch),
-         hp_status = factor(hp_status, levels = c( "Difference in homopolymer",  "Difference outside homopolymer", "Identical proximity")))
-
+         hp_status = factor(hp_status, 
+  levels = c( "Difference in homopolymer",  
+              "Difference outside homopolymer", 
+              "Identical proximity")))
 
 def_barplot <- def %>% distinct(ID, nc, cv, stretch, hm_match, 
                                 aln_hg38vsT2T, pos.hg38, pos.T2T, chr, gene_info, hp_status,
@@ -276,7 +272,9 @@ def_barplot$dep <- sub(".*\\((\\d+)\\).*", "\\1", def_barplot$aln_hg38vsT2T)
 ```
 
 ```{r figure2B, fig.width = 11, fig.height = 4.5}
-def_barplot$cv <- factor(def_barplot$cv, levels =  c("Benign", "Likely benign", "Other", "Conflicting interpretations", "Uncertain significance", "Likely pathogenic", "Pathogenic"))
+def_barplot$cv <- factor(def_barplot$cv, levels =  
+              c("Benign", "Likely benign", "Other", "Conflicting interpretations", 
+                "Uncertain significance", "Likely pathogenic", "Pathogenic"))
 
 dat <- def_barplot %>% 
   mutate(nc = ifelse(hp_status == "Difference in homopolymer", 
@@ -298,12 +296,14 @@ dat$nc <- factor(dat$nc, levels = rev(names(palette_seq_mod)))
                       legend.margin = margin(0,10,0,-120))
               + guides(fill = guide_legend(nrow = 1, title.position = "top"))
               + scale_x_continuous(labels = scales::percent, limits = c(0,0.4))
-              + geom_text(data = . %>% group_by(cv) %>% summarize(perc = sum(perc), tot = unique(tot), n = sum(n)),
+              + geom_text(data = . %>% group_by(cv) %>% 
+                            summarize(perc = sum(perc), tot = unique(tot), n = sum(n)),
                           aes(x = perc, 
                               label = paste0(scales::percent(round(perc, 2)),
                               " (", n, "/", tot, ")")
                                              ),
-                          vjust = 0, hjust = -0.4)
+                          vjust = 0.5, hjust = -0.15)
+              + scale_x_continuous(expand = expansion(mult = c(0, .45)))
               + geom_label(data = . %>% filter(round(perc, 2)*100 > 0), 
                            aes(label = paste0(#"N=",n, "\n", 
                              scales::percent(round(perc, 2))) , x = perc, fill = nc), 
@@ -366,26 +366,25 @@ path = case_when(any(grepl("cancer", pathway)) ~ "Pathway in cancer",
                          .by = c("gene_info", "prop_diff" , "n_mod", "div"))
 ```
 
-```{r fig2C, fig.height = 8, fig.width = 7.5}
+```{r figure2C, fig.height = 8, fig.width = 7.5}
 (ggplot(df_barplot_patho, 
  aes(x = reorder(gene_info, - prop_diff), 
      y = round(prop_diff, 2)*100))
  + geom_col(aes(fill = path))
  + theme_publication()
- # + scale_fill_gradient(high = "#132B43",
- #  low = "#56B1F7",
- # )
- # + scale_color_manual(values = c("Actionable gene" = "#a8216b", "Other" = "gray50"))
-              
  + geom_label(aes(label = paste0("N=", n_mod) , y = 0), size = 3,
               angle = 90, hjust = -0.1, fill = "transparent", show.legend = F, color = "white")     
  + facet_wrap(div ~ ., scales = "free", ncol = 1 )
  + labs(x = "Actionable genes included in ClinVar", 
         y = "Pathogenic SNVs with differences\nin their proximal sequence (%)",
         fill = "KEGG pathway hits")
-  + scale_fill_manual(values = c("#f7b6d3", "#d6a9c8", "#9467bd", "#c5b0d5", "#17becf", "#aec7e8", "#1f77b4"), 
+  + scale_fill_manual(values = 
+                        c("#f7b6d3", "#d6a9c8", "#9467bd",
+                          "#c5b0d5", "#aec7e8", "#4a6d88", "#1f77b4"), 
                     na.value = "gray80")
- + scale_color_manual(values = c("#f7b6d3", "#d6a9c8", "#9467bd", "#c5b0d5", "#17becf", "#aec7e8", "#1f77b4"),
+ + scale_color_manual(values =
+                        c("#f7b6d3", "#d6a9c8", "#9467bd", 
+                          "#c5b0d5", "#aec7e8", "#4a6d88", "#1f77b4"),
                       na.value = "gray80")
   + geom_text(aes(label = scales::percent(prop_diff, 2)), size = 4, vjust = -0.5)
   + scale_y_continuous(expand = expansion(mult = c(0, .1)))
@@ -395,12 +394,8 @@ path = case_when(any(grepl("cancer", pathway)) ~ "Pathway in cancer",
          legend.position = "bottom",
          legend.title.position = "top",
          legend.margin = margin(0,0,0,-20),
-         axis.text.x = element_text(size = 11),
-         #axis.text.x = element_text(angle = 35, hjust = 1, vjust = 1),
-
-         #axis.text.x = element_blank(),
-         axis.ticks.x = element_blank()
-         #axis.title.x = element_blank()
+         axis.text.x = element_text(size = 11, face = "italic"),
+        axis.ticks.x = element_blank()
          )
   + guides(fill = guide_legend(nrow = 3))
 )
@@ -412,23 +407,32 @@ path = case_when(any(grepl("cancer", pathway)) ~ "Pathway in cancer",
 def_ds <- def_barplot %>% filter(!is.na(disease), 
                          !is.na(nc), 
                          disease != "not specified", cv %in% c("Pathogenic", "Likely pathogenic")) 
-tp <- def_ds%>% 
-   distinct(hp_status, disease, ID, cv) %>% group_by(disease) %>% mutate(tot = n()) %>% ungroup() %>% 
-   group_by(hp_status, disease) %>% summarize(N = n(), perc = n()/unique(tot), tot = unique(tot))
-order <- tp %>% group_by(disease) %>% summarize(
-  perc_var = sum(perc[hp_status != "Identical proximity"]),
-  perc_equal = perc[hp_status == "Identical proximity"]) %>%
-  arrange(perc_var) %>% pull(disease)
+tp <- def_ds %>% 
+   distinct(hp_status, disease, ID, cv) %>% group_by(disease) %>% 
+  mutate(tot = n()) %>% ungroup() %>% group_by(hp_status, disease) %>% 
+  summarize(N = n(), perc = n()/unique(tot), tot = unique(tot))
+tp$disease <- ifelse(grepl("Neurodevelopmental", tp$disease),
+                     "Neurodevelopmental disorder with hypotonia,\nfacial dysmorphism, and brain abnormalities",
+                     tp$disease)
+tp$disease <- ifelse(grepl("17-alpha", tp$disease),
+                     "17-alpha-hydroxylase/17,20-lyase\ndeficiency, combined complete",
+                     tp$disease)
+
+tp <- tp %>% filter(N>1)
+tp <- tp %>% filter(!(hp_status == "Identical proximity" & perc == 1) & tot > 5 & hp_status != "Identical proximity")
+order <- tp %>% ungroup() %>% group_by(disease) %>% 
+  summarize(
+   perc_var = sum(perc[hp_status != "Identical proximity"]),
+   perc_equal = ifelse( "Identical proximity" %in% hp_status,
+                        perc[hp_status == "Identical proximity"], 0)) %>%
+   arrange(perc_var) %>% pull(disease)
 
 tp <- tp %>% mutate(disease = factor(disease, levels = order))
-
-tp <- tp %>% filter(!(hp_status == "Identical proximity" & perc == 1) & tot > 5 & hp_status != "Identical proximity")
-
 ```
 
-```{r figure2D, fig.width = 14, fig.height = 7}
+```{r figure2D, fig.width = 11, fig.height = 8}
 
-(ggplot(tp %>% filter(N>1), 
+(ggplot(tp, 
         aes( x = perc, y = disease))
   + geom_col( aes(fill = hp_status))
   + theme_publication()
@@ -445,12 +449,165 @@ tp <- tp %>% filter(!(hp_status == "Identical proximity" & perc == 1) & tot > 5 
                           aes(x = perc, 
                               label = scales::percent(round(perc, 2), 1)),
                           vjust = 0.5, hjust = -0.5, size = 4)
- + scale_x_continuous(expand =  expansion(mult = c(0, .1)))
+ + scale_x_continuous(expand =  expansion(mult = c(0, .08)))
    + theme(
           legend.position = "bottom",
           legend.margin = margin(l = -.45, unit = "npc"))
   )
 ```
+
+## Figure 2E
+Load mutation calls from cBioportal for MSK-IMPACT 50k and GDC TCGA cohorts overlapping ClinVar annotated sites:
+```{r}
+load("../cbioportal/tcga_clinvar.RData")
+clinical_tcga <- fread("../cbioportal/tcga_gdc_2025_clinical_sample.txt", fill = T)
+
+load("../cbioportal/msk_clinvar.RData")
+clinical_msk <- fread("../cbioportal/msk_impact_50k_2026_clinical_sample.txt", 
+                      skip = 4 )
+```
+
+```{r figure2E, fig.width = 4, fig.height = 8}
+tot <- length(unique(clinical_tcga$PATIENT_ID))
+a <- tcga %>% 
+  group_by(ID, nc, Hugo_Symbol) %>% dplyr::count()
+a <- a %>% mutate(freq = (n/tot) * 100)
+#length(unique(a$ID))
+tot <- length(unique(clinical_msk$PATIENT_ID))
+#tot <- length(unique(msk$Tumor_Sample_Barcode))
+b <- msk %>% 
+  group_by(ID, nc, Hugo_Symbol) %>% dplyr::count()
+b <- b %>% mutate(freq = (n/tot) * 100)
+
+comp <- bind_rows(list("TCGA GDC 2025" = a,
+                       "MSK-IMPACT 50k 2026" = b),
+                  .id = "proj")
+
+(ggplot(comp, 
+        aes(x = proj, fill = nc))
+  + geom_bar(data = . %>% filter(nc != "Equal"))
+  + geom_label_repel(data = . %>% group_by(proj) %>% mutate(tot = n()) %>%
+                 ungroup() %>% group_by(proj, nc) %>% dplyr::summarize(
+                   n=n(),
+                   perc = n()/unique(tot)) %>% filter(nc != "Equal"),
+               position = position_stack(0.5),
+               aes(y=n, label = scales::percent(perc, 0.01)),
+               show.legend = F,
+               direction = "y", color = "white")
+  + theme_publication()
+  + labs(x = "Cohort", 
+         y = "N ClinVar IDs\noverlapping with mutation calls",
+         fill = "Proximal sequence status\n(±150bp) for hg38vsT2T-CHM13")
+  + theme(axis.text.x = element_text(angle = 25, hjust = 1, vjust = 1),
+          legend.position = "bottom",
+          legend.title.position = "top",
+          legend.margin = margin(l = -.35, unit = "npc")
+          )
+   + scale_fill_manual(values = palette_seq_mod)
+  + guides(fill = guide_legend(nrow = 3))
+)
+
+```
+
+```{r}
+comp %>% group_by(proj) %>% mutate(tot = n()) %>%
+                 ungroup() %>% group_by(proj,nc) %>% dplyr::summarize(
+                   n=n(), perc = n()/unique(tot)) %>% filter(nc != "Equal") %>%
+  ungroup() %>% group_by(proj) %>% dplyr::summarize(perc = sum(perc))
+```
+
+```{r}
+tb <- comp %>% filter(nc != "Equal") %>% dplyr::select(-c(n)) %>% mutate(freq = round(freq,3)) %>% 
+  arrange(desc(freq)) %>% pivot_wider(names_from = proj, values_from = freq) 
+write.table(tb, paste0(supp_table_path, "Supplementary_table_7.csv"),
+            sep = ",", row.names = F)
+```
+
+
+```{r figure_rev3A, fig.width = 8, fig.height = 8}
+tot <- length(unique(clinical_tcga$PATIENT_ID))
+#tot <- length(unique(tcga$case_id))
+a <- tcga %>% 
+  group_by(ID, nc, cv, Hugo_Symbol) %>% dplyr::count()
+a <- a %>% mutate(freq = (n/tot) * 100)
+
+tot <- length(unique(clinical_msk$PATIENT_ID))
+#tot <- length(unique(msk$Tumor_Sample_Barcode))
+b <- msk %>% 
+  group_by(ID, nc, cv, Hugo_Symbol) %>% dplyr::count()
+b <- b %>% mutate(freq = (n/tot) * 100)
+
+comp <- bind_rows(list("TCGA GDC 2025" = a,
+                       "MSK-IMPACT 50k 2026" = b),
+                  .id = "proj")
+
+comp$cv <- factor(comp$cv,levels =  c("Benign", "Likely benign", "Other",
+                                      "Conflicting interpretations", "Uncertain significance", 
+                                      "Likely pathogenic", "Pathogenic"))
+
+(ggplot(comp, 
+        aes(x = cv, fill = nc))
+  + geom_bar(data = . %>% filter(nc != "Equal"))
+  + geom_label_repel(data = . %>% group_by(proj, cv) %>% mutate(tot = n()) %>%
+                 ungroup() %>% group_by(proj, cv, nc) %>% dplyr::summarize(
+                   n=n(),
+                   perc = n()/unique(tot)) %>% filter(nc != "Equal"),
+               position = position_stack(0.5),
+               aes(y=n, label = scales::percent(perc, 0.01)),
+               show.legend = F,
+               direction = "y", color = "white")
+  + theme_publication()
+  + labs(x = "ClinVar classification", 
+         y = "N ClinVar IDs\noverlapping with mutation calls",
+         fill = "Proximal sequence status (±150bp) for hg38vsT2T-CHM13")
+  + facet_grid(proj ~ ., scales = "free_y")
+  + theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+          legend.position = "bottom",
+          legend.title.position = "top"
+          )
+   + scale_fill_manual(values = palette_seq_mod)
+)
+
+```
+
+Check overlap among mutation calls between the two cohorts:
+```{r}
+int <- full_join(a %>% ungroup() %>% distinct(ID) %>% mutate(proj = "TCGA"), 
+          b %>% ungroup() %>% distinct(ID) %>% mutate(proj = "MSK"), by = "ID") %>%
+  mutate(cl = ifelse(!is.na(proj.x) & is.na(proj.y), "TCGA",
+                      ifelse(is.na(proj.x) & !is.na(proj.y), "MSK", "Both")) )
+table(int$cl)
+```
+
+```{r figure_rev3B, fig.width = 8, fig.height = 4}
+e <- comp %>% filter(nc != "Equal") %>% filter(n>1) %>%
+  filter(proj == "TCGA GDC 2025")
+
+e <- e %>% 
+          group_by(Hugo_Symbol) %>% 
+          filter(n()>1) %>% 
+  filter(!grepl("enign", cv))
+(ggplot(e, 
+        aes(x = freq, y = cv))
+  + geom_violin(color = "gray70")
+   + geom_beeswarm(aes( color = Hugo_Symbol))
+   + theme_publication()
+   + facet_wrap(proj~ .)
+   + labs(x = "Frequency of mutations overlapping\nClinVar IDs (%)", 
+         y = "ClinVar classification",
+         color = "Gene")
+   + theme(legend.position = "bottom",
+           legend.text= element_text(face = "italic"),
+            legend.justification = c(0,1),
+        legend.margin = margin(t = 0, r = 0, b = 0, l = -100, unit = "pt"))
+  + geom_label_repel(data = . %>% filter(freq > 0.05),
+                     aes(label = ID), show.legend = F)
+   + scale_color_manual(values = paletteer::paletteer_d("palettetown::blastoise"))
+   + guides(color = guide_legend(nrow = 2, title.position = "left"))
+)
+
+```
+
 
 # Supplementary 5
 
@@ -479,12 +636,10 @@ dat <- def_barplot %>% group_by(cv) %>% mutate(hp_class =
                       legend.margin = margin(0,10,0,-120))
               + guides(fill = guide_legend(nrow = 1, title.position = "left"))
               + scale_x_continuous(expand =  expansion(mult = c(0, .15)))
-              #         legend.text=element_text(size=22), legend.title = element_text(size=24))
-              # + geom_text(data = . %>% group_by(cv) %>% summarize(perc = sum(perc)),
-              #             aes(x = perc, 
-              #                 label = scales::percent(round(perc, 2), 1)),
-              #             vjust = 0, hjust = -0.5)
-  + geom_label(aes(label = paste0("N=",n, "\n", scales::percent(round(perc, 2), 1)) , x = perc, fill = hp_class), 
+          
+  + geom_label(aes(label = 
+                     paste0("N=",n, "\n", scales::percent(round(perc, 2), 1)) , 
+                   x = perc, fill = hp_class), 
                                  position=position_stack(vjust = 0.5), 
                                  color = "white", size = 3, 
                            #direction = "x",
@@ -549,9 +704,6 @@ c <- (ggplot(def_hg19vshg38,
 patchwork::wrap_plots(a + labs(title = "hg38vsT2T-CHM13", x = "") , b + labs(title = "hg19vsT2T-CHM13", y = ""), 
                       c + labs(title = "hg19vshg38", y = "", x = ""),
                       nrow= 1, widths = c(4,4,4), guides = "collect", axes = "collect") & plot_annotation(theme = theme(legend.position = 'bottom'))
-
-# (a + labs(title = "hg38vsT2T-CHM13", x = "")) + (b + labs(title = "hg19vsT2T-CHM13", y = "")) + (c + labs(title = "hg19vshg38", y = "", x = "")) + plot_layout(nrow = 1, widths = c(4,4,4), guides = "collect", axes = "collect") & theme(legend.position = 'bottom')
-
 ```
 
 ## Supplementary 5C
@@ -567,7 +719,7 @@ selected <- def %>% filter(gene_info %in% df_barplot_patho$gene_info)
               + labs(x = "Gene", y = "Proportion of ClinVar IDs", fill = "Sequence alignment hg38vsT2T-CHM13")
               + theme_publication()
               + theme(panel.grid = element_blank(), legend.position = "bottom",
-                       axis.text.x = element_text(angle = 25, hjust = 1, vjust = 1)
+                       axis.text.x = element_text(angle = 25, hjust = 1, vjust = 1, face = "italic")
              )
               + facet_grid(.~ chr, scales = "free", space = "free")
               + scale_fill_manual(values = palette_seq_mod)
@@ -593,7 +745,10 @@ def[def$ID == id]
 grid.newpage()
 pushViewport(viewport(layout = grid.layout(3, 1, heights=c(0.2, 0.5,0.5))))
 pushViewport(viewport(layout.pos.row = 1, layout.pos.col = 1))
-grid.text(paste0("ClinVar ID: ", id, " - Gene: ", gene), gp = gpar(fontsize = 16, fontface = "bold"))
+grid.text(
+  bquote("ClinVar ID: " ~ .(id) ~ " - Gene: " ~ italic(.(gene))),
+  gp = gpar(fontsize = 16, fontface = "bold")
+)
 grid.legend(labels = c("A","C","T","G"), nrow = 1,
            pch = 15,  # square symbols
            gp = gpar(col = c("#9cd0e3", "#ea9249", "#2466a8", "#cd0016"), cex = 0.8),
