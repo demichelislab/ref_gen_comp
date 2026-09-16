@@ -24,16 +24,12 @@ Load summary of general calls:
 
 ``` r
 suppressWarnings(load(paste0(rdata_path,"clinvar.RData")))
-def <- de
-def$cv <- ifelse(def$cv == "Other" & def$class == "Likely_benign", "Likely benign", as.character(def$cv))
-def$cv <- ifelse(is.na(def$cv), "Other", as.character(def$cv))
-levels(def$cv) <- c("Benign", "Likely benign", "Other", "Conflicting interpretations", "Uncertain significance", "Likely pathogenic", "Pathogenic")
-
 load(paste0(rdata_path, "variant_calls_ClinVar.RData"))
 calls <- left_join(calls %>% dplyr::select(-c(nc)) %>% mutate(ID = as.character(ID.y)), def, by = "ID")
 calls <- calls %>% mutate(identifier = paste0(sample, ID))
 calls <- calls %>% group_by(sample, ID) %>% dplyr::filter(n()==2) %>% ungroup() %>% 
-  mutate(seq = ifelse(nc != "Equal", "Differences\nin proximity", ifelse(nc == "Equal", "Identical\nproximity", NA)))
+  mutate(seq = ifelse(nc != "Equal", "Differences\nin proximity", 
+                      ifelse(nc == "Equal", "Identical\nproximity", NA)))
 ```
 
 Compare calls from different callers:
@@ -98,7 +94,6 @@ a <- (ggplot(call_comparison,
        aes(y = method))
  + theme_publication()
  + geom_bar(position = "dodge", aes(fill = assembly))
- #+ facet_wrap(cv ~ ., scales = "free", strip.position = "top", nrow = 1)
  + facet_wrap(cv ~ ., scales = "free", strip.position = "right", ncol = 1)
   + scale_x_continuous(expand = expansion(mult = c(0, .1)))
  + scale_fill_manual(values = c("T2T" = "#ED7D31",  "hg38" = "#7f061b"),
@@ -141,7 +136,8 @@ b <- (ggplot(call_comparison,
                        labels = c("hg38", "T2T-CHM13"))
   )
 
-(a + plot_spacer() + b + plot_layout(nrow = 1, guides = "collect", widths = c(5, 0.1,4)) + plot_annotation(theme =  theme(legend.position = "bottom")))
+(a + plot_spacer() + b + plot_layout(nrow = 1, guides = "collect", widths = c(5, 0.1,4)) + 
+    plot_annotation(theme =  theme(legend.position = "bottom")))
 ```
 
 ![](Figure_3_S6/figure3B.png)<!-- -->
@@ -154,7 +150,8 @@ Compare VAF from Strelka2 calls:
 ``` r
 dek <- calls %>% filter(cov.indel > cov_thr & AF.indel >= vaf_thr &
                                    !is.na(AF.indel)) %>% 
-  distinct(identifier, assembly, AF.indel, cv, QUAL.indel, cov.indel, nc, seq, hm_match, aln_hg38vsT2T, chr.x, pos.hg38, pos.T2T, ID.y, stretch)
+  distinct(identifier, assembly, AF.indel, cv, QUAL.indel, cov.indel, nc, seq, hm_match, 
+           aln_hg38vsT2T, chr.x, pos.hg38, pos.T2T, ID.y, stretch)
 
 dek <- dek %>% group_by(identifier) %>% dplyr::filter(n()==2) %>% ungroup()
 p1 <- (ggplot(dek,
@@ -193,7 +190,6 @@ p1 <- (ggplot(dek,
 df_barplot <- dek %>% mutate(hp_status = case_when((hm_match == "F" | is.na(hm_match))  & 
                                                             aln_hg38vsT2T != "." & !is.na(stretch) ~ "Difference outside homopolymer", 
                                               hm_match == "T"  & !is.na(stretch) ~ "Difference in homopolymer",
-                                              #aln_hg38vsT2T != "."  & !is.na(stretch) ~ "Variation in homopolymer",
                                               is.na(stretch) & aln_hg38vsT2T != "." ~ "Difference outside homopolymer",
                                               is.na(stretch)  & aln_hg38vsT2T == "." ~ "Identical proximity",
                                               !is.na(stretch) & aln_hg38vsT2T == "." ~ "Identical proximity", 
@@ -221,7 +217,8 @@ p2 <- (ggplot(df_barplot, aes(x = VAF_status))
         tapply(after_stat(count), after_stat(x), sum)[as.character(after_stat(x))], accuracy = 0.1)), stat ="count",
 position=position_fill(vjust = 0.5), color = "white", show.legend = F)
    #+ facet_grid(~stretch)
-  + scale_fill_manual(values = c("Difference in homopolymer" = "#003665", "Difference outside homopolymer" = "#29bec3", "Identical proximity" = "gray60"), 
+  + scale_fill_manual(values = c("Difference in homopolymer" = "#003665", 
+                                 "Difference outside homopolymer" = "#29bec3", "Identical proximity" = "gray60"), 
                       breaks = c("Identical proximity","Difference outside homopolymer", "Difference in homopolymer" ))
   + labs(y = "Proportion", x = "", fill = "Proximal sequence status (±150bp) for hg38vsT2T-CHM13")
   + stat_pvalue_manual(p_value_table ,
@@ -233,8 +230,6 @@ position=position_fill(vjust = 0.5), color = "white", show.legend = F)
           plot.subtitle = element_text(size = 16))
   + coord_flip()
 )
-
-#p2
 ```
 
 
@@ -289,7 +284,8 @@ plot_pp <- (pp
   + annotate(geom = "text", label = paste0("Levenshtein similarity (±75 bp): ", round(lev, 2)),
              x = pos_hg38 - unique(exons$gene_start), y = 0.35,
              hjust = -0.03, color = "#a12d69", size = 4.3)
-  + theme(plot.margin = margin(5,5,10,0))
+  + theme(plot.margin = margin(5,5,10,0),
+          plot.title = element_text(face = "italic"))
   + geom_hline(yintercept = 2.55, color = "gray30")
   + guides(fill="none")
   + coord_cartesian(clip = "off")
@@ -341,7 +337,8 @@ plot_pp <- (pp
   + annotate(geom = "text", label = paste0("Levenshtein similarity (±75 bp): ", round(lev, 2)), 
              x = pos_hg38 - unique(exons$gene_start), y = 0.35, 
              hjust = 1.03, color = "#a12d69", size = 4.3)
-  + theme(plot.margin = margin(5,5,10,0))
+  + theme(plot.margin = margin(5,5,10,0),
+           plot.title = element_text(face = "italic"))
   + geom_hline(yintercept = 2.55, color = "gray30")
   + guides(fill="none")
   + coord_cartesian(clip = "off")
@@ -353,6 +350,100 @@ plot_pp
 
 ![](Figure_3_S6/figure3D_msatp53.png)<!-- -->
 
+## Estimate general increment in VAF and coverage from Strelka2 calls
+
+
+``` r
+results <- dek %>%
+  group_by(identifier, cv) %>%
+  summarize(
+    VAF_increment =
+      100 * (AF.indel[assembly == "T2T"] - AF.indel[assembly == "hg38"]) /
+      AF.indel[assembly == "hg38"],
+    VAF.T2T = AF.indel[assembly == "T2T"],
+    VAF.hg38 = AF.indel[assembly == "hg38"],
+    cov_increment =
+      100 * (cov.indel[assembly == "T2T"] - cov.indel[assembly == "hg38"]) /
+      cov.indel[assembly == "hg38"],
+    .groups = "drop"
+  )
+
+# Summary statistics
+results %>% 
+  summarize(
+    n = n(),
+
+    # VAF
+    mean_VAF_increment = mean(VAF_increment, na.rm = TRUE),
+    sd_VAF_increment = sd(VAF_increment, na.rm = TRUE),
+    se_VAF_increment = sd(VAF_increment, na.rm = TRUE) /
+      sqrt(sum(!is.na(VAF_increment))),
+    IQR_VAF_increment = IQR(VAF_increment, na.rm = TRUE),
+   
+    # Coverage
+    mean_cov_increment = mean(cov_increment, na.rm = TRUE),
+    sd_cov_increment = sd(cov_increment, na.rm = TRUE),
+    se_cov_increment = sd(cov_increment, na.rm = TRUE) /
+      sqrt(sum(!is.na(cov_increment))),
+    IQR_cov_increment = IQR(cov_increment, na.rm = TRUE)
+ )
+```
+
+```
+## # A tibble: 1 × 9
+##        n mean_VAF_increment sd_VAF_increment se_VAF_increment IQR_VAF_increment
+##    <int>              <dbl>            <dbl>            <dbl>             <dbl>
+## 1 162579               2.29             16.1           0.0400                 0
+## # ℹ 4 more variables: mean_cov_increment <dbl>, sd_cov_increment <dbl>,
+## #   se_cov_increment <dbl>, IQR_cov_increment <dbl>
+```
+
+``` r
+wilcox.test(results$VAF_increment, mu = 0)
+```
+
+```
+## 
+## 	Wilcoxon signed rank test with continuity correction
+## 
+## data:  results$VAF_increment
+## V = 945784158, p-value < 2.2e-16
+## alternative hypothesis: true location is not equal to 0
+```
+
+``` r
+wilcox.test(results$cov_increment, mu = 0)
+```
+
+```
+## 
+## 	Wilcoxon signed rank test with continuity correction
+## 
+## data:  results$cov_increment
+## V = 245941189, p-value = 8.22e-10
+## alternative hypothesis: true location is not equal to 0
+```
+
+
+``` r
+t.test(results$VAF_increment)$conf.int
+```
+
+```
+## [1] 2.214997 2.371930
+## attr(,"conf.level")
+## [1] 0.95
+```
+
+``` r
+t.test(results$cov_increment)$conf.int
+```
+
+```
+## [1] 0.2649340 0.3972942
+## attr(,"conf.level")
+## [1] 0.95
+```
 
 # Supplementary 6
 
@@ -599,26 +690,54 @@ a <- (ggplot(inpt,
             label = exons_hg38$id_exon, color = "gray60", hjust = 0.5)
   + geom_hline(yintercept = 0)
   + geom_point()
-  + facet_zoom( xy = id == "17", horizontal = F, show.area = F)
+  + facet_zoom( xy = id == "17", horizontal = F, show.area = F,
+                ylim = c(-2, 2))
   + theme_publication()
-  + labs(x = "Position hg38 (Mb)", y = "Percentage of median absolute change in\ncoverage (T2T-CHM13 - hg38)\nfor BRCA1 pathogenic variants", subtitle = "BRCA1")
+  + labs(x = "Position hg38 (Mb)", 
+         y = "Percentage of median absolute change in<br>coverage (T2T-CHM13 - hg38)
+         <br>for *BRCA1* pathogenic variants", 
+         subtitle = "BRCA1")
+  + theme(plot.subtitle = element_text(face = "italic"),
+           axis.title.y = ggtext::element_markdown(),
+              )
 )
-b <- (ggplot(brca1_df %>% dplyr::filter(cv == "Pathogenic", pos.hg38 %in% inpt$pos.hg38[inpt$id == 17]), aes(x = assembly, y = cov.bcf, fill = assembly))
+focus <- brca1_df %>% dplyr::filter(cv == "Pathogenic", 
+          pos.hg38 %in% inpt$pos.hg38[inpt$id == 17])
+b <- (ggplot(focus %>% distinct(cov.bcf, assembly, ID,sample) %>% 
+               group_by(ID,sample) %>% filter(n() == 2) %>% ungroup() %>% 
+               pivot_wider(names_from = "assembly", values_from ="cov.bcf"), 
+          aes(y = T2T-hg38, x = ""))
+       + geom_violin()
+      + geom_boxplot(width = 0.05)
+        + geom_jitter(alpha = 0.1, width = 0.3)
+       + theme_publication()
+      + labs(y = "Cov T2T-CHM13 -\ncov hg38")
+       + theme(axis.text.x = element_blank(),
+               axis.ticks.x = element_blank(),
+               axis.title.x = element_blank())
+)
+c <- (ggplot(focus, 
+          aes(x = assembly, y = cov.bcf, fill = assembly))
        + geom_boxplot()
        + theme_publication()
        + stat_compare_means(paired = T, label.x = 1.5, comparisons = list(c("hg38", "T2T")),
                             alternative = "less")
        + scale_fill_manual(values = c("T2T" = "#ED7D31",  "hg38" = "#7f061b"), labels = c("hg38", "T2T-CHM13"))
        + labs(x = "Assembly version", y = "Coverage of exon 17\npathogenic variants", fill = "")
-       + theme(panel.grid = element_blank(), axis.text.x = element_blank(), axis.ticks.x = element_blank(),
-               legend.position = "bottom", legend.margin = margin(l = -.05, unit = "npc"))
+       + theme(panel.grid = element_blank(), 
+               axis.text.x = element_blank(), 
+               axis.ticks.x = element_blank(),
+               legend.position = "bottom", legend.margin = margin(l = -.05, unit = "npc"),
+               plot.subtitle = element_text(face="italic"))
      )
-lt <- "A#
-AB"
-a + b + plot_layout(design = lt, widths = c(10,1), heights = c(5,7))
+
+lt <- "AB
+AC"
+a + b + c +  plot_layout(design = lt, widths = c(10,1), heights = c(5,7))
 ```
 
 ![](Figure_3_S6/figureS6C.png)<!-- -->
+
 
 ## Supplementary Figure 6D
 
@@ -626,12 +745,16 @@ a + b + plot_layout(design = lt, widths = c(10,1), heights = c(5,7))
 ``` r
 actionable_genes <- fread(paste0(utilities_path, "Actionability_AllData_v14_GRCh37.tsv")) %>% distinct(GENE) %>% pull(GENE)
 
-sum_calls <- calls %>% group_by(sample, ID) %>% filter(n() == 2) %>% group_by(ID, nc, sample, gene) %>%
+sum_calls <- calls %>% group_by(sample, ID) %>% filter(n() == 2 & 
+                                                         "T2T" %in% assembly & 
+                                                         "hg38" %in% assembly) %>% 
+  group_by(ID, nc, sample, gene) %>%
   summarize(delta_cov = cov.bcf[assembly == "T2T"] - cov.bcf[assembly == "hg38"],
             delta_VAF = AF.bcf[assembly == "T2T"] - AF.bcf[assembly == "hg38"])
 
  
-sc <- left_join(sum_calls, def %>% distinct(cv, ID)) %>% filter(cv %in% c("Pathogenic", "Likely pathogenic")) %>% 
+sc <- left_join(sum_calls, def %>% distinct(cv, ID)) %>% 
+  filter(cv %in% c("Pathogenic", "Likely pathogenic")) %>% 
   ungroup() %>% summarize(tot = n(),
                                       perc_cov_T2T = length(delta_cov[delta_cov >0]) / tot,
                                       perc_VAF_T2T = length(delta_VAF[delta_VAF >0]) / tot,
@@ -640,7 +763,7 @@ sc <- left_join(sum_calls, def %>% distinct(cv, ID)) %>% filter(cv %in% c("Patho
 (ggplot(sc %>% filter(N > 100) %>% mutate(act = ifelse(gene %in% actionable_genes, "Yes", "No")), 
         aes(x = perc_cov_T2T, y = perc_VAF_T2T))
   + geom_point(aes( size = N, color = act))
-  + geom_label_repel(aes(label = gene))
+  + geom_label_repel(aes(label = gene), fontface = "italic")
   + theme_publication()
   + scale_color_manual(values = c("Yes" = "#a2315d", "No" = "gray50"))
   + labs(x = "Proportion of pathogenic / likely pathogenic IDs with\ncoverage increase in T2T-CHM13", 
@@ -653,11 +776,37 @@ sc <- left_join(sum_calls, def %>% distinct(cv, ID)) %>% filter(cv %in% c("Patho
 
 ![](Figure_3_S6/figureS6D.png)<!-- -->
 
+
+``` r
+tb <- fread(paste0(supp_table_path, "Supplementary_table_7.csv"))
+tb$ID <- as.character(tb$ID)
+sum_calls <- calls %>% group_by(sample, ID) %>% filter(n() == 2 & 
+                                                         "T2T" %in% assembly & 
+                                                         "hg38" %in% assembly) %>% 
+  group_by(ID, nc, sample, gene) %>%
+  filter(max(AF.bcf) > 0.01, nc != "Allele swapping", REF.bcf[assembly == "T2T"] == 
+           REF.bcf[assembly == "hg38"]) %>% 
+  summarize(delta_cov = cov.bcf[assembly == "T2T"] - cov.bcf[assembly == "hg38"],
+            delta_VAF = AF.bcf[assembly == "T2T"] - AF.bcf[assembly == "hg38"],
+            perc_VAF =  ((AF.bcf[assembly == "T2T"] - AF.bcf[assembly == "hg38"]) / 
+                           AF.bcf[assembly == "T2T"]) * 100,
+            max_VAF = max(AF.bcf[assembly == "T2T"], AF.bcf[assembly == "hg38"]) * 100)
+
+sc <- merge(tb, left_join(sum_calls, def %>% distinct(cv, ID))) 
+
+summary(sc %>% filter(cv %in% c("Pathogenic")) %>% pull(delta_VAF)*100)
+```
+
+```
+##     Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+## -0.01306  0.00000  0.00000  0.03624  0.00000  0.99472
+```
+
 ## Supplementary Figure 6E
 
 
 ``` r
-load("/shares/CIBIO-Storage/CO/SPICE/personal/ilaria/long_1kgp/dfplot_cons_1kgp_hg38_t2t_patho.RData")
+load(paste0(rdata_path, "dfplot_cons_1kgp_hg38_t2t_patho.RData"))
 
 count_df <- df_plot %>% filter(ID == 100326, assembly == "hg38") %>% 
   group_by(`Superpopulation code`, ID, AS, assembly) %>%
@@ -665,7 +814,6 @@ count_df <- df_plot %>% filter(ID == 100326, assembly == "hg38") %>%
   mutate(y = 0)  # set y-position for label
 
 (ggplot(df_plot, 
-        #%>% filter(ID == 100326), 
         aes(y = value, x = `Superpopulation code`, fill = assembly))
   + theme_bw()
   + geom_violin()
@@ -691,8 +839,7 @@ count_df <- df_plot %>% filter(ID == 100326, assembly == "hg38") %>%
   + scale_y_continuous(
     trans = focus_above_threshold_trans(threshold = 0.98),
     breaks = c(0.2, 0.5, 0.98, 1),
-    #limits = c(0.7, 1)
-  ) # + scale_fill_manual(values = palette_population)
+  ) 
 )
 ```
 
